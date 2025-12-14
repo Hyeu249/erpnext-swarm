@@ -1,0 +1,54 @@
+version: '3.7'
+
+services:
+  backup-and-restore:
+    image: ${IMAGE_NAME:-frappe/erpnext}:${VERSION:?No image version set}
+    deploy:
+      restart_policy:
+        condition: none
+      placement:
+        constraints:
+          - node.hostname == ${HOST_NAME:-petrol-uat}
+    entrypoint: ["bash", "-c"]
+    command: 
+      - |
+        echo "===== BACKUP SOURCE SITE: ${SITE_FROM} ====="
+        
+        OUTPUT_LOG=$$(bench --site "${SITE_FROM}" backup)
+        
+        DB_FILE_PATH=$$(echo "$$OUTPUT_LOG" | grep "Database:" | cut -d' ' -f2)
+        
+        if [ -z "$$DB_FILE_PATH" ]; then
+            echo "❌ Không tìm thấy file database trong log"
+            exit 1
+        fi
+        
+        echo "===== RESTORING BACKUP OF ${SITE_FROM} TO ${SITE_TO} ====="
+        bench --site "${SITE_TO}" restore "$$DB_FILE_PATH" --mariadb-root-password ${MYSQL_ROOT_PASSWORD:-admin} --force
+
+        echo "===== DONE ====="
+
+    environment:
+      - SITE_FROM=${SITE_FROM:?No source site set}
+      - SITE_TO=${SITE_TO:?No target site set}
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-admin}
+
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+
+    networks:
+      - bench-network
+      - mariadb-network
+
+volumes:
+  sites:
+    external: true
+    name: ${BENCH_NAME:-erpnext}_sites
+
+networks:
+  bench-network:
+    name: ${BENCH_NAME:-erpnext}
+    external: true
+  mariadb-network:
+    name: ${BENCH_NAME:-erpnext}_mariadb-network
+    external: true

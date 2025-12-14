@@ -1,0 +1,44 @@
+version: '3.7'
+
+services:
+  backup-sites:
+    image: ${IMAGE_NAME:-frappe/erpnext}:${VERSION:?No image version set}
+    deploy:
+      restart_policy:
+        condition: none
+      placement:
+        constraints:
+          - node.hostname == ${HOST_NAME:-petrol-uat}
+    entrypoint: ["bash", "-c"]
+    command:
+      - |
+        bench --site all backup
+        ## Uncomment for restic snapshots.
+        # restic snapshots || restic init
+        # restic backup sites
+        ## Uncomment to keep only last 30 snapshots.
+        # restic forget --group-by=paths --keep-last=30 --prune
+    environment:
+      - RESTIC_REPOSITORY=${RESTIC_REPOSITORY}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - RESTIC_PASSWORD=${RESTIC_PASSWORD}
+    volumes:
+      - "sites:/home/frappe/frappe-bench/sites"
+    networks:
+      - bench-network
+      - mariadb-network
+
+volumes:
+  sites:
+    external: true
+    # set to name of the sites volume
+    name: ${BENCH_NAME:-erpnext}_sites
+
+networks:
+  bench-network:
+    name: ${BENCH_NAME:-erpnext}
+    external: true
+  mariadb-network:
+    name: ${BENCH_NAME:-erpnext}_mariadb-network
+    external: true

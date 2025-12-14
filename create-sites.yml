@@ -1,0 +1,40 @@
+version: '3.7'
+
+services:
+  configurator:
+    image: ${IMAGE_NAME:-frappe/erpnext}:${VERSION:?No image version set}
+    deploy:
+      restart_policy:
+        condition: none
+      placement:
+        constraints:
+          - node.hostname == ${HOST_NAME:-petrol-uat}
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+    command:
+      - bench
+      - new-site
+      - --no-mariadb-socket
+      - --install-app=erpnext
+      - --install-app=hrms
+      - --install-app=raven
+      - --db-root-password=admin
+      - --admin-password=admin
+      - ${SITE_NAME-:uat.citypetro.com.vn}
+    networks:
+      - mariadb-network
+      - bench-network
+
+volumes:
+  sites:
+    external: true
+    # set to name of the sites volume
+    name: ${BENCH_NAME:-erpnext}_sites
+
+networks:
+  bench-network:
+    name: ${BENCH_NAME:-erpnext}
+    external: true
+  mariadb-network:
+    name: ${BENCH_NAME:-erpnext}_mariadb-network
+    external: true

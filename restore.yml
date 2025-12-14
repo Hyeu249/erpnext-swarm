@@ -1,0 +1,39 @@
+version: '3.7'
+
+services:
+  configurator:
+    image: ${IMAGE_NAME:-frappe/erpnext}:${VERSION:?No image version set}
+    deploy:
+      restart_policy:
+        condition: none
+      placement:
+        constraints:
+          - node.hostname == ${HOST_NAME:-petrol-uat}
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+    command:
+      - /bin/bash
+      - -c
+      - |
+          echo "Restoring site ${SITE_NAME} from backup..."
+          pwd
+          ls -lh /home/frappe/frappe-bench/sites/${SITE_NAME}/private/backups
+          bench --site ${SITE_NAME} restore /home/frappe/frappe-bench/sites/${SITE_NAME}/private/backups/${FILE_NAME} \
+            --mariadb-root-password ${MYSQL_ROOT_PASSWORD:-admin}
+    networks:
+      - mariadb-network
+      - bench-network
+
+volumes:
+  sites:
+    external: true
+    # set to name of the sites volume
+    name: ${BENCH_NAME:-erpnext}_sites
+
+networks:
+  bench-network:
+    name: ${BENCH_NAME:-erpnext}
+    external: true
+  mariadb-network:
+    name: ${BENCH_NAME:-erpnext}_mariadb-network
+    external: true
