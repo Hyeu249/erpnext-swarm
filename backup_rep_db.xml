@@ -1,0 +1,92 @@
+version: "3.7"
+
+services:
+  rep-db:
+    image: mariadb:10.6
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == ${HOST_NAME:-erpnext-prod}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
+      - --skip-innodb-read-only-compressed
+    environment:
+      MYSQL_ROOT_PASSWORD: ${REP_DB_ROOT_PASSWORD:-admin}
+    volumes:
+      - rep-db-data:/var/lib/mysql
+    networks:
+      - rep-mariadb-network
+
+  erpnext-db-replication:
+    image: ${IMAGE_NAME:-frappe/erpnext}:${VERSION:?No image version set}
+    deploy:
+      restart_policy:
+        condition: none
+      placement:
+        constraints:
+          - node.hostname == ${HOST_NAME:-erpnext-prod}
+    entrypoint: ["bash", "-c"]
+    command:
+      - |
+
+        echo "===== BACKUP ERPNext DB FROM SITE: ${SITE_FROM} ====="
+        BACKUP_LOG=$$(bench --site "${SITE_FROM}" backup)
+    
+        DB_FILE=$$(echo "$$BACKUP_LOG" | grep "Database:" | cut -d' ' -f2)
+        if [ -z "$$DB_FILE" ]; then
+          echo "❌ Không tìm thấy file database trong log"
+          exit 1
+        fi
+    
+        echo "===== BACKUP FILE FOUND: $$DB_FILE ====="
+    
+        echo "===== CREATE REPORTING DATABASE IF NOT EXISTS ====="
+        mysql -h rep-db -u root -p$$REP_DB_ROOT_PASSWORD -e "
+          CREATE DATABASE IF NOT EXISTS $$REP_DB_NAME
+          CHARACTER SET utf8mb4
+          COLLATE utf8mb4_unicode_ci;
+        "
+    
+        echo "===== RESTORE DATABASE TO REPORTING DB ====="
+        cd sites
+        gunzip < "$$DB_FILE" | \
+          mysql -h rep-db -u root -p$$REP_DB_ROOT_PASSWORD $$REP_DB_NAME
+    
+        echo "===== DONE ====="
+
+    environment:
+      SITE_FROM: ${SITE_FROM:?No ERPNext site set}
+      REP_DB_NAME: ${REP_DB_NAME:-erpnext_rep}
+      REP_DB_ROOT_PASSWORD: ${REP_DB_ROOT_PASSWORD:-admin}
+
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+
+    networks:
+      - bench-network
+      - mariadb-network        # ERPNext DB
+      - rep-mariadb-network    # Reporting DB
+
+volumes:
+  rep-db-data:
+  sites:
+    external: true
+    name: ${BENCH_NAME:-erpnext}_sites
+
+networks:
+  # ERPNext app network
+  bench-network:
+    name: ${BENCH_NAME:-erpnext}
+    external: true
+
+  # ERPNext MariaDB network
+  mariadb-network:
+    name: ${BENCH_NAME:-erpnext}_mariadb-network
+    external: true
+
+  # Reporting DB network (Power BI + cron)
+  rep-mariadb-network:
+    name: ${BENCH_NAME:-erpnext}_rep_mariadb
+    external: false
