@@ -18,10 +18,18 @@ services:
       - rep-db-data:/var/lib/mysql
     networks:
       - rep-mariadb-network
+    ports:
+      - "3307:3306" 
 
   erpnext-db-replication:
     image: ${IMAGE_NAME:-frappe/erpnext}:${VERSION:?No image version set}
     deploy:
+      mode: replicated
+      replicas: 0
+      labels:
+        - "swarm.cronjob.enable=true"
+        - "swarm.cronjob.schedule=*/45 * * * *"
+        - "swarm.cronjob.skip-running=false"
       restart_policy:
         condition: none
       placement:
@@ -30,7 +38,6 @@ services:
     entrypoint: ["bash", "-c"]
     command:
       - |
-
         echo "===== BACKUP ERPNext DB FROM SITE: ${SITE_FROM} ====="
         BACKUP_LOG=$$(bench --site "${SITE_FROM}" backup)
     
