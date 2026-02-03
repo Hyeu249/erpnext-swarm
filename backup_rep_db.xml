@@ -42,6 +42,26 @@ services:
     
         echo "===== BACKUP FILE FOUND: $$DB_FILE ====="
     
+        cd sites
+    
+        # Thư mục chứa backup gốc (private/backups)
+        SRC_DIR=$$(dirname "$$DB_FILE")
+    
+        # Thư mục latest (ngoài nó 1 bậc)
+        LATEST_DIR="$${SRC_DIR%/backups}/latest_backup"
+    
+        echo "===== PREPARE LATEST BACKUP FOLDER: $$LATEST_DIR ====="
+        mkdir -p "$$LATEST_DIR"
+    
+        echo "===== CLEAN OLD BACKUPS ====="
+        rm -f "$$LATEST_DIR"/*
+    
+        echo "===== MOVE NEW BACKUP TO LATEST FOLDER ====="
+        mv "$$DB_FILE" "$$LATEST_DIR/"
+    
+        LATEST_FILE="$$(basename "$$DB_FILE")"
+        echo "===== LATEST BACKUP: $$LATEST_DIR/$$LATEST_FILE ====="
+    
         echo "===== CREATE REPORTING DATABASE IF NOT EXISTS ====="
         mysql -h rep-db -u root -p$$REP_DB_ROOT_PASSWORD -e "
           CREATE DATABASE IF NOT EXISTS $$REP_DB_NAME
@@ -50,8 +70,7 @@ services:
         "
     
         echo "===== RESTORE DATABASE TO REPORTING DB ====="
-        cd sites
-        gunzip < "$$DB_FILE" | \
+        gunzip < "$$LATEST_DIR/$$LATEST_FILE" | \
           mysql -h rep-db -u root -p$$REP_DB_ROOT_PASSWORD $$REP_DB_NAME
     
         echo "===== DONE ====="
