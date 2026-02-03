@@ -28,7 +28,7 @@ services:
       replicas: 0
       labels:
         - "swarm.cronjob.enable=true"
-        - "swarm.cronjob.schedule=*/45 * * * *"
+        - "swarm.cronjob.schedule=*/30 * * * *"
         - "swarm.cronjob.skip-running=false"
       restart_policy:
         condition: none
