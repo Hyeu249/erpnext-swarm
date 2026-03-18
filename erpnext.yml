@@ -463,4 +463,14 @@ networks:
 # RESTIC_REPOSITORY       | Path Styled S3 endpoint              | nil
 # SITES                   | Mandatory List of sites as back      | nil
 #                         | quoted strings, e.g. `a.com`,`b.org` |
-# VERSION                 | Mandatory image tag to use           | nil
+
+#longyin vars
+# HOST_NAME               | node name                            | nil
+# BENCH_NAME              |                                      | nil
+# IMAGE_NAME              |                                      | nil
+# VERSION                 |                                      | nil
+# CONFIGURE               |                                      | nil
+# CREATE_SITE             |                                      | nil
+# INSTALL_APP_ARGS        |                                      | nil
+# SITE_NAME               |                                      | nil
+# FRONTEND_PORT           | mỗi bench name là mỗi port           | nil
